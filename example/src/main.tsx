@@ -13,7 +13,7 @@ const instruction = {
   color: 'white',
   bottom: 20,
   position: 'absolute' as 'absolute',
-  textAlign: 'center',
+  textAlign: 'center'  as  'center',
   left: 0,
   opacity: 0.4,
   right: 0
