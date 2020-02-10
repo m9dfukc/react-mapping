@@ -14,6 +14,9 @@ const styles = {
     border: '2px solid white',
     cursor: 'pointer'
   },
+  highlight: {
+    border: '2px solid red',
+  },
   'top-left': {
     left: -halfAnchor,
     top: -halfAnchor
@@ -41,6 +44,7 @@ export interface Props {
   translation: Vector;
   style?: React.CSSProperties;
   className?: string;
+  highlight?: boolean;
 }
 
 export const AnchorComponent: React.StatelessComponent<Props> = ({
@@ -50,7 +54,8 @@ export const AnchorComponent: React.StatelessComponent<Props> = ({
   onMouseDown,
   onMouseUp,
   className = '',
-  style = {}
+  style = {},
+  highlight = false
 }) => (
   <div
     onMouseEnter={() => onMouseEnter && onMouseEnter(position)}
@@ -61,6 +66,7 @@ export const AnchorComponent: React.StatelessComponent<Props> = ({
       ...styles.container,
       ...styles[position],
       ...style,
+      ...(highlight ? styles.highlight : null),
       transform: vectorToTransform(translation)
     }}
   />

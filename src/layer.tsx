@@ -4,13 +4,18 @@ import { matrixToTransform, transformPointsToMatrix, vectorToTransform } from '.
 
 // Component interfaces
 export interface Props {
+  label: string;
   style?: React.CSSProperties;
   className?: string;
   isEditMode?: boolean;
+  save?: boolean;
+  reload?: boolean;
+  reset?: boolean;
   x?: number;
   y?: number;
   anchorStyle?: React.CSSProperties;
   anchorClassName?: string;
+  onChange?: (State) => null;
 }
 
 export interface Context {
@@ -23,6 +28,7 @@ export interface State {
   sourcePoints?: RectPoints;
   transformOrigin: Vector;
   containerTranslate: Vector;
+  hover: boolean;
 }
 
 const styles = {
@@ -90,12 +96,32 @@ export class Layer extends React.Component<Props, State> {
   targetPoints: RectPoints;
   anchorMoving: Anchor | undefined;
 
-  state: State = {
+  namespace = 'react-mapping-';
+  identifier = this.namespace + this.props.label;
+
+  data = window.localStorage.getItem(this.identifier);
+  getDefaultState = () => ({
     matrix: defaultMatrix,
     translateDelta: anchors.reduce((acc, key) => ((acc[key] = [0, 0]), acc), {}),
     sourcePoints: undefined,
     transformOrigin: [0, 0],
     containerTranslate: [this.props.x || 0, this.props.y || 0]
+  });
+  initialize = () => {
+    if (this.container) {
+      const { width, height } = this.container.getBoundingClientRect();
+      const sourcePoints = [[0, 0], [width, 0], [width, height], [0, height]] as RectPoints;
+
+      this.targetPoints = [...sourcePoints] as RectPoints;
+      this.setState({ sourcePoints });
+    } else {
+      throw new Error("Couldn't get a reference of the container element");
+    }
+  };
+
+  state: State = {
+    ...(this.data ? JSON.parse(this.data) : this.getDefaultState()),
+    hover: false
   };
 
   componentWillMount() {
@@ -104,21 +130,33 @@ export class Layer extends React.Component<Props, State> {
   }
 
   componentDidMount() {
-    if (this.container) {
-      const { width, height } = this.container.getBoundingClientRect();
-
-      const sourcePoints = [[0, 0], [width, 0], [width, height], [0, height]] as RectPoints;
-
-      this.targetPoints = [...sourcePoints] as RectPoints;
-      this.setState({ sourcePoints });
-    } else {
-      throw new Error("Couldn't get a reference of the container element");
-    }
+    this.initialize();
   }
 
   componentWillUnmount() {
     window.removeEventListener('mousemove', this.onAnchorMouseMove);
     window.removeEventListener('mousemove', this.onMouseMove);
+  }
+
+  componentDidUpdate(prevProps) {
+    if (this.props.save && this.props.save !== prevProps.save) {
+      const key = this.namespace + this.props.label;
+      const data = JSON.stringify(this.state);
+      window.localStorage.setItem(key, data);
+    }
+    if (this.props.reset && this.props.reset !== prevProps.reset) {
+      const key = this.namespace + this.props.label;
+      const state = this.getDefaultState() as State;
+      window.localStorage.removeItem(key);
+      this.setState(state);
+      this.initialize();
+    }
+    if (this.props.reload && this.props.reload !== prevProps.reload && this.data) {
+      const state = this.data ? JSON.parse(this.data) : this.getDefaultState();
+      const { sourcePoints } = state;
+      this.targetPoints = [...sourcePoints] as RectPoints;
+      this.setState(state);
+    }
   }
 
   onAnchorMouseDown = (evt, position) => {
@@ -186,14 +224,27 @@ export class Layer extends React.Component<Props, State> {
     ];
   };
 
+  onMouseEnter = () => {
+    this.setState({
+      hover: true
+    });
+  };
+  onMouseLeave = () => {
+    this.setState({
+      hover: false
+    });
+  };
+
   render() {
     const { style, isEditMode, className, anchorStyle, anchorClassName } = this.props;
-    const { translateDelta, matrix, containerTranslate, transformOrigin } = this.state;
+    const { translateDelta, matrix, containerTranslate, transformOrigin, hover } = this.state;
 
     return (
       <div
         onMouseDown={this.onMouseDown}
         onMouseUp={this.onMouseUp}
+        onMouseEnter={this.onMouseEnter}
+        onMouseLeave={this.onMouseLeave}
         style={{
           cursor: isEditMode ? 'all-scroll' : 'inherit',
           position: 'relative',
@@ -227,6 +278,7 @@ export class Layer extends React.Component<Props, State> {
                 position={anchor}
                 onMouseDown={this.onAnchorMouseDown}
                 onMouseUp={this.onAnchorMouseUp}
+                highlight={hover}
               />
             ))}
           </div>
